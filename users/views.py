@@ -7,12 +7,26 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from .models import CustomUser
 from .decorators import role_required
+from django.contrib.auth import authenticate
 
 # Create your views here.
 
 class CustomLoginView(LoginView):
     template_name = 'users/login.html'
     redirect_authenticated_user = True
+
+    def form_invalid(self, form):
+        username = form.cleaned_data.get('username')
+        password = form.cleaned_data.get('password')
+        
+        if username and password:
+            user = authenticate(username=username, password=password)
+            if user and not user.is_active:
+                form.add_error(None, 'Ваша учетная запись отключена. Пожалуйста, обратитесь к администратору.')
+            else:
+                form.add_error(None, 'Неверное имя пользователя или пароль.')
+        
+        return super().form_invalid(form)
 
 class CustomLogoutView(LogoutView):
     next_page = reverse_lazy('login')

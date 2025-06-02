@@ -1,0 +1,75 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Смены{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Смены</h4>
+                    {% if user.role == 'engineer' or user.role == 'admin' %}
+                    <a href="{% url 'downtimes:shift_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Добавить смену
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Название</th>
+                                    <th>Линия</th>
+                                    <th>Начало</th>
+                                    <th>Конец</th>
+                                    <th>Длительность</th>
+                                    <th>Статус</th>
+                                    {% if user.role == 'engineer' or user.role == 'admin' %}
+                                    <th>Действия</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for shift in shifts %}
+                                <tr>
+                                    <td>{{ shift.name }}</td>
+                                    <td>{{ shift.line.name }}</td>
+                                    <td>{{ shift.start_time|time:"H:i" }}</td>
+                                    <td>{{ shift.end_time|time:"H:i" }}</td>
+                                    <td>{{ shift.get_duration }}</td>
+                                    <td>
+                                        {% if shift.is_active %}
+                                        <span class="badge bg-success">Активна</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Неактивна</span>
+                                        {% endif %}
+                                    </td>
+                                    {% if user.role == 'engineer' or user.role == 'admin' %}
+                                    <td>
+                                        <a href="{% url 'downtimes:shift_update' shift.pk %}" class="btn btn-sm btn-warning">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'downtimes:shift_delete' shift.pk %}" class="btn btn-sm btn-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="{% if user.role == 'engineer' or user.role == 'admin' %}7{% else %}6{% endif %}" class="text-center">
+                                        Нет смен
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

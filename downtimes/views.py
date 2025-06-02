@@ -3,11 +3,11 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.contrib import messages
-from .models import Downtime, Line, Department, Section, DowntimeReason
+from .models import Downtime, Line, Department, Section, DowntimeReason, Shift
 from users.decorators import role_required
 from users.models import CustomUser
 from django.utils.decorators import method_decorator
-from django.forms import DateTimeInput
+from django.forms import DateTimeInput, TimeInput
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django.core.exceptions import ValidationError
@@ -422,3 +422,56 @@ def get_reasons(request):
     reasons = DowntimeReason.objects.filter(department_id=department_id, is_active=True)
     data = [{'id': reason.id, 'name': reason.name} for reason in reasons]
     return JsonResponse(data, safe=False)
+
+# Представления для смен
+class ShiftListView(LoginRequiredMixin, ListView):
+    model = Shift
+    template_name = 'downtimes/shift_list.html'
+    context_object_name = 'shifts'
+    ordering = ['line', 'start_time']
+
+@method_decorator(role_required(CustomUser.ROLE_ENGINEER), name='dispatch')
+class ShiftCreateView(LoginRequiredMixin, CreateView):
+    model = Shift
+    template_name = 'downtimes/shift_form.html'
+    fields = ['name', 'line', 'start_time', 'end_time', 'is_active']
+    success_url = reverse_lazy('downtimes:shift_list')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['line'].queryset = Line.objects.filter(is_active=True)
+        form.fields['start_time'].widget = TimeInput(attrs={'type': 'time', 'class': 'form-control'})
+        form.fields['end_time'].widget = TimeInput(attrs={'type': 'time', 'class': 'form-control'})
+        return form
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Смена успешно создана')
+        return super().form_valid(form)
+
+@method_decorator(role_required(CustomUser.ROLE_ENGINEER), name='dispatch')
+class ShiftUpdateView(LoginRequiredMixin, UpdateView):
+    model = Shift
+    template_name = 'downtimes/shift_form.html'
+    fields = ['name', 'line', 'start_time', 'end_time', 'is_active']
+    success_url = reverse_lazy('downtimes:shift_list')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['line'].queryset = Line.objects.filter(is_active=True)
+        form.fields['start_time'].widget = TimeInput(attrs={'type': 'time', 'class': 'form-control'})
+        form.fields['end_time'].widget = TimeInput(attrs={'type': 'time', 'class': 'form-control'})
+        return form
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Смена успешно обновлена')
+        return super().form_valid(form)
+
+@method_decorator(role_required(CustomUser.ROLE_ENGINEER), name='dispatch')
+class ShiftDeleteView(LoginRequiredMixin, DeleteView):
+    model = Shift
+    template_name = 'downtimes/shift_confirm_delete.html'
+    success_url = reverse_lazy('downtimes:shift_list')
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, 'Смена успешно удалена')
+        return super().delete(request, *args, **kwargs)

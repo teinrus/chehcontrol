@@ -37,4 +37,10 @@ urlpatterns = [
 
     path('api/sections/', views.get_sections, name='api_sections'),
     path('api/reasons/', views.get_reasons, name='api_reasons'),
+
+    # URLs для смен
+    path('shifts/', views.ShiftListView.as_view(), name='shift_list'),
+    path('shifts/create/', views.ShiftCreateView.as_view(), name='shift_create'),
+    path('shifts/<int:pk>/update/', views.ShiftUpdateView.as_view(), name='shift_update'),
+    path('shifts/<int:pk>/delete/', views.ShiftDeleteView.as_view(), name='shift_delete'),
 ] 

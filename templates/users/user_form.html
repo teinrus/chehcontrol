@@ -1,0 +1,73 @@
+{% extends 'base/base.html' %}
+
+{% block title %}
+    {% if form.instance.pk %}
+        Редактирование пользователя - ЦехКонтроль
+    {% else %}
+        Добавление пользователя - ЦехКонтроль
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">
+                        {% if form.instance.pk %}
+                            Редактирование пользователя
+                        {% else %}
+                            Добавление пользователя
+                        {% endif %}
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% for field in form %}
+                        <div class="mb-3">
+                            <label for="{{ field.id_for_label }}" class="form-label">
+                                {{ field.label }}
+                            </label>
+                            {{ field.errors }}
+                            {% if field.name == 'password' %}
+                                <input type="password" name="{{ field.name }}" id="{{ field.id_for_label }}" class="form-control" required>
+                                <div class="form-text">Пароль для входа в систему</div>
+                            {% elif field.name == 'username' %}
+                                {{ field }}
+                                <div class="form-text">Имя пользователя для входа в систему</div>
+                            {% elif field.name == 'email' %}
+                                {{ field }}
+                                <div class="form-text">Email пользователя</div>
+                            {% elif field.name == 'full_name' %}
+                                {{ field }}
+                                <div class="form-text">Полное имя пользователя</div>
+                            {% elif field.name == 'role' %}
+                                {{ field }}
+                                <div class="form-text">Роль пользователя в системе</div>
+                            {% else %}
+                                {{ field }}
+                            {% endif %}
+                            {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'user_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Назад
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Сохранить
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

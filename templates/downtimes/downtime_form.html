@@ -1,0 +1,220 @@
+{% extends 'base/base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}
+    {% if form.instance.pk %}
+        Редактирование простоя
+    {% else %}
+        Новый простой
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            {% if form.instance.pk %}
+                Редактирование простоя
+            {% else %}
+                Новый простой
+            {% endif %}
+        </h1>
+        <a href="{% url 'downtimes:downtime_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Назад
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.line.id_for_label }}" class="form-label">Линия</label>
+                            {% render_field form.line class="form-select" %}
+                            {% if form.line.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.line.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.section.id_for_label }}" class="form-label">Участок</label>
+                            {% render_field form.section class="form-select" %}
+                            {% if form.section.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.section.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.department.id_for_label }}" class="form-label">Подразделение</label>
+                            {% render_field form.department class="form-select" %}
+                            {% if form.department.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.department.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.reason.id_for_label }}" class="form-label">Причина</label>
+                            {% render_field form.reason class="form-select" %}
+                            {% if form.reason.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.reason.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.start_time.id_for_label }}" class="form-label">Время начала</label>
+                            {% render_field form.start_time class="form-control" %}
+                            {% if form.start_time.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.start_time.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.end_time.id_for_label }}" class="form-label">Время окончания</label>
+                            {% render_field form.end_time class="form-control" %}
+                            {% if form.end_time.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.end_time.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.notes.id_for_label }}" class="form-label">Примечания</label>
+                            {% render_field form.notes class="form-control" rows="3" %}
+                            {% if form.notes.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.notes.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        {% if form.instance.pk %}
+                            Сохранить изменения
+                        {% else %}
+                            Создать
+                        {% endif %}
+                    </button>
+                    <a href="{% url 'downtimes:downtime_list' %}" class="btn btn-outline-secondary">Отмена</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const lineSelect = document.getElementById('{{ form.line.id_for_label }}');
+    const sectionSelect = document.getElementById('{{ form.section.id_for_label }}');
+    const departmentSelect = document.getElementById('{{ form.department.id_for_label }}');
+    const reasonSelect = document.getElementById('{{ form.reason.id_for_label }}');
+    const form = document.querySelector('form');
+
+    // Сохраняем начальные значения
+    const initialSectionId = '{{ form.instance.section.id|default:"" }}';
+    const initialReasonId = '{{ form.instance.reason.id|default:"" }}';
+
+    // Функция для загрузки участков
+    function loadSections(lineId) {
+        if (!lineId) {
+            sectionSelect.innerHTML = '<option value="">---------</option>';
+            sectionSelect.disabled = true;
+            return;
+        }
+
+        fetch(`/downtimes/api/sections/?line=${lineId}`)
+            .then(response => response.json())
+            .then(data => {
+                sectionSelect.innerHTML = '<option value="">---------</option>';
+                data.forEach(section => {
+                    const option = new Option(section.name, section.id);
+                    sectionSelect.add(option);
+                });
+                sectionSelect.disabled = false;
+                
+                // Восстанавливаем сохраненное значение участка
+                if (initialSectionId) {
+                    sectionSelect.value = initialSectionId;
+                }
+            });
+    }
+
+    // Функция для загрузки причин
+    function loadReasons(departmentId) {
+        if (!departmentId) {
+            reasonSelect.innerHTML = '<option value="">---------</option>';
+            reasonSelect.disabled = true;
+            return;
+        }
+
+        fetch(`/downtimes/api/reasons/?department=${departmentId}`)
+            .then(response => response.json())
+            .then(data => {
+                reasonSelect.innerHTML = '<option value="">---------</option>';
+                data.forEach(reason => {
+                    const option = new Option(reason.name, reason.id);
+                    reasonSelect.add(option);
+                });
+                reasonSelect.disabled = false;
+                
+                // Восстанавливаем сохраненное значение причины
+                if (initialReasonId) {
+                    reasonSelect.value = initialReasonId;
+                }
+            });
+    }
+
+    // Обработчики событий
+    lineSelect.addEventListener('change', function() {
+        loadSections(this.value);
+    });
+
+    departmentSelect.addEventListener('change', function() {
+        loadReasons(this.value);
+    });
+
+    // Обработчик отправки формы
+    form.addEventListener('submit', function(e) {
+        // Проверяем, что участок выбран
+        if (lineSelect.value && !sectionSelect.value) {
+            e.preventDefault();
+            alert('Пожалуйста, выберите участок');
+            return;
+        }
+    });
+
+    // Инициализация при загрузке страницы
+    if (lineSelect.value) {
+        loadSections(lineSelect.value);
+    } else {
+        sectionSelect.disabled = true;
+    }
+
+    if (departmentSelect.value) {
+        loadReasons(departmentSelect.value);
+    } else {
+        reasonSelect.disabled = true;
+    }
+});
+</script>
+{% endblock %}
+{% endblock %} 

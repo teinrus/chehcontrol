@@ -1,0 +1,45 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Главная - ЦехКонтроль{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Добро пожаловать, {{ user.full_name }}!</h1>
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Простои</h5>
+                    <p class="card-text">Управление простоями производства</p>
+                    <a href="{% url 'downtimes:downtime_list' %}" class="btn btn-primary">Перейти</a>
+                </div>
+            </div>
+        </div>
+        
+        {% if user.has_role_at_least.CustomUser.ROLE_ENGINEER %}
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Линии</h5>
+                    <p class="card-text">Управление производственными линиями</p>
+                    <a href="{% url 'downtimes:line_list' %}" class="btn btn-primary">Перейти</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if user.has_role_at_least.CustomUser.ROLE_ADMIN %}
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Пользователи</h5>
+                    <p class="card-text">Управление пользователями системы</p>
+                    <a href="{% url 'user_list' %}" class="btn btn-primary">Перейти</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

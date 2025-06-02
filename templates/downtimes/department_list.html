@@ -1,0 +1,66 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Подразделения - ЦехКонтроль{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Подразделения</h1>
+        {% if user.get_role_level >= 2 %}
+        <a href="{% url 'downtimes:department_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Добавить подразделение
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if departments %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Описание</th>
+                            <th>Статус</th>
+                            {% if user.get_role_level >= 2 %}
+                            <th>Действия</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for department in departments %}
+                        <tr>
+                            <td>{{ department.name }}</td>
+                            <td>{{ department.description|default:"-" }}</td>
+                            <td>
+                                {% if department.is_active %}
+                                <span class="badge bg-success">Активно</span>
+                                {% else %}
+                                <span class="badge bg-danger">Неактивно</span>
+                                {% endif %}
+                            </td>
+                            {% if user.get_role_level >= 2 %}
+                            <td>
+                                <a href="{% url 'downtimes:department_update' department.pk %}" class="btn btn-sm btn-outline-primary me-2">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'downtimes:department_delete' department.pk %}" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted mb-0">Нет подразделений</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

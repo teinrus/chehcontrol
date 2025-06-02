@@ -1,0 +1,207 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Детали простоя - ЦехКонтроль{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Детали простоя</h1>
+        <div class="btn-group">
+            {% if user.get_role_level >= 2 %}
+            <a href="{% url 'downtimes:downtime_update' downtime.pk %}" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Редактировать
+            </a>
+            <a href="{% url 'downtimes:downtime_delete' downtime.pk %}" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Удалить
+            </a>
+            {% endif %}
+            <a href="{% url 'downtimes:downtime_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Назад
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Основная информация</h5>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-3">Линия</dt>
+                        <dd class="col-sm-9">{{ downtime.line }}</dd>
+
+                        <dt class="col-sm-3">Участок</dt>
+                        <dd class="col-sm-9">{{ downtime.section }}</dd>
+
+                        <dt class="col-sm-3">Подразделение</dt>
+                        <dd class="col-sm-9">{{ downtime.department }}</dd>
+
+                        <dt class="col-sm-3">Причина</dt>
+                        <dd class="col-sm-9">{{ downtime.reason }}</dd>
+
+                        <dt class="col-sm-3">Время начала</dt>
+                        <dd class="col-sm-9">{{ downtime.start_time|date:"d.m.Y H:i" }}</dd>
+
+                        <dt class="col-sm-3">Время окончания</dt>
+                        <dd class="col-sm-9">{{ downtime.end_time|date:"d.m.Y H:i" }}</dd>
+
+                        <dt class="col-sm-3">Примечания</dt>
+                        <dd class="col-sm-9">{{ downtime.notes|default:"-" }}</dd>
+
+                        <dt class="col-sm-3">Создал</dt>
+                        <dd class="col-sm-9">{{ downtime.created_by.get_full_name }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">История изменений</h5>
+                    {% if history %}
+                    <div class="timeline">
+                        {% for record in history %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">
+                                    {% if record.action == 'created' %}
+                                    <i class="fas fa-plus-circle text-success"></i> Создан
+                                    {% else %}
+                                    <i class="fas fa-edit text-primary"></i> Изменен
+                                    {% endif %}
+                                </h6>
+                                <p class="text-muted small mb-2">
+                                    <i class="fas fa-user"></i>
+                                    {% if record.user %}
+                                        {{ record.user.get_full_name }}
+                                    {% else %}
+                                        <em>неизвестно</em>
+                                    {% endif %}
+                                    <br>
+                                    <i class="fas fa-clock"></i> {{ record.timestamp|date:"d.m.Y H:i" }}
+                                </p>
+                                {% if record.action == 'updated' %}
+                                <div class="changes">
+                                    {% for field, values in record.changes.fields.items %}
+                                    <div class="change-item">
+                                        <strong>{{ field }}:</strong>
+                                        <span class="text-danger">{{ values.old|default:"-" }}</span>
+                                        <i class="fas fa-arrow-right mx-2"></i>
+                                        <span class="text-success">{{ values.new|default:"-" }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="changes">
+                                    {% for field, value in record.changes.fields.items %}
+                                    <div class="change-item">
+                                        <strong>{{ field }}:</strong>
+                                        <span class="text-success">{{ value|default:"-" }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Нет записей об изменениях</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 1.5rem;
+}
+
+.timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -30px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #007bff;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 2px #007bff;
+}
+
+.timeline-item:not(:last-child):before {
+    content: '';
+    position: absolute;
+    left: -23px;
+    top: 15px;
+    height: calc(100% - 15px);
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+}
+
+.timeline-content h6 {
+    color: #495057;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.timeline-content .text-muted {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-bottom: 0.5rem;
+}
+
+.timeline-content .text-muted i {
+    width: 16px;
+    text-align: center;
+    margin-right: 0.5rem;
+    color: #6c757d;
+}
+
+.changes {
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #dee2e6;
+}
+
+.change-item {
+    margin-bottom: 0.5rem;
+    padding: 0.25rem 0;
+}
+
+.change-item:last-child {
+    margin-bottom: 0;
+}
+
+.change-item strong {
+    color: #495057;
+    margin-right: 0.5rem;
+}
+
+.change-item .text-danger,
+.change-item .text-success {
+    font-weight: 500;
+}
+</style>
+{% endblock %} 

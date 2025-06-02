@@ -1,0 +1,68 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Причины простоев - ЦехКонтроль{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Причины простоев</h1>
+        {% if user.get_role_level >= 2 %}
+        <a href="{% url 'downtimes:reason_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Добавить причину
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if reasons %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Подразделение</th>
+                            <th>Описание</th>
+                            <th>Статус</th>
+                            {% if user.get_role_level >= 2 %}
+                            <th>Действия</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reason in reasons %}
+                        <tr>
+                            <td>{{ reason.name }}</td>
+                            <td>{{ reason.department.name }}</td>
+                            <td>{{ reason.description|default:"-" }}</td>
+                            <td>
+                                {% if reason.is_active %}
+                                <span class="badge bg-success">Активна</span>
+                                {% else %}
+                                <span class="badge bg-danger">Неактивна</span>
+                                {% endif %}
+                            </td>
+                            {% if user.get_role_level >= 2 %}
+                            <td>
+                                <a href="{% url 'downtimes:reason_update' reason.pk %}" class="btn btn-sm btn-outline-primary me-2">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'downtimes:reason_delete' reason.pk %}" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted mb-0">Нет причин простоев</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

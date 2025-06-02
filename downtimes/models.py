@@ -3,6 +3,8 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from datetime import datetime, time
+from django.db.models.signals import post_save
+from utils.middleware import get_current_user
 
 User = get_user_model()
 
@@ -141,11 +143,16 @@ class Downtime(models.Model):
     def __str__(self):
         return f"{self.line.name} - {self.start_time.strftime('%Y-%m-%d %H:%M')}"
 
-    @property
-    def duration(self):
+    def get_duration(self):
         if self.end_time and self.start_time:
-            return self.end_time - self.start_time
-        return None
+            duration = self.end_time - self.start_time
+            total_seconds = int(duration.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            if hours > 0:
+                return f"{hours}ч {minutes}м"
+            return f"{minutes}м"
+        return "-"
 
     def clean(self):
         if self.section and self.section.line != self.line:
@@ -158,16 +165,72 @@ class Downtime(models.Model):
             raise ValidationError({'end_time': 'Время окончания не может быть раньше времени начала'})
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        if not is_new:
+            old_instance = Downtime.objects.get(pk=self.pk)
+        
         self.full_clean()
         super().save(*args, **kwargs)
+        
+        # Используем created_by для всех операций
+        user = self.created_by
+        
+        if is_new:
+            # Для нового простоя
+            DowntimeHistory.objects.create(
+                downtime=self,
+                user=user,
+                action='created',
+                changes={
+                    'fields': {
+                        'line': str(self.line),
+                        'section': str(self.section) if self.section else None,
+                        'department': str(self.department) if self.department else None,
+                        'reason': str(self.reason) if self.reason else None,
+                        'start_time': self.start_time.isoformat() if self.start_time else None,
+                        'end_time': self.end_time.isoformat() if self.end_time else None,
+                        'notes': self.notes
+                    }
+                }
+            )
+        else:
+            # Для изменений
+            changes = {}
+            fields_to_track = ['line', 'section', 'department', 'reason', 'start_time', 'end_time', 'notes']
+            
+            for field in fields_to_track:
+                old_value = getattr(old_instance, field)
+                new_value = getattr(self, field)
+                
+                if old_value != new_value:
+                    if field in ['start_time', 'end_time']:
+                        changes[field] = {
+                            'old': old_value.isoformat() if old_value else None,
+                            'new': new_value.isoformat() if new_value else None
+                        }
+                    else:
+                        changes[field] = {
+                            'old': str(old_value) if old_value else None,
+                            'new': str(new_value) if new_value else None
+                        }
+            
+            if changes:
+                DowntimeHistory.objects.create(
+                    downtime=self,
+                    user=user,
+                    action='updated',
+                    changes={
+                        'fields': changes
+                    }
+                )
 
 
 class DowntimeHistory(models.Model):
-    downtime = models.ForeignKey(Downtime, on_delete=models.CASCADE, related_name='history', verbose_name='Простой')
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name='Пользователь')
-    action = models.CharField(max_length=50, verbose_name='Действие')
-    timestamp = models.DateTimeField(auto_now_add=True, verbose_name='Время действия')
-    details = models.TextField(blank=True, verbose_name='Детали')
+    downtime = models.ForeignKey(Downtime, on_delete=models.CASCADE, related_name='history')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    action = models.CharField(max_length=50)  # 'created', 'updated', 'deleted'
+    changes = models.JSONField(default=dict)  # Store field changes as JSON
 
     class Meta:
         verbose_name = 'История простоя'
@@ -175,4 +238,4 @@ class DowntimeHistory(models.Model):
         ordering = ['-timestamp']
 
     def __str__(self):
-        return f"{self.downtime} - {self.action} ({self.timestamp.strftime('%Y-%m-%d %H:%M')})"
+        return f"{self.downtime} - {self.action} by {self.user} at {self.timestamp}"

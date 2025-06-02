@@ -122,6 +122,11 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link {% if 'shift' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'downtimes:shift_list' %}">
+                        <i class="fas fa-clock me-2"></i>Смены
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link {% if 'department' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'downtimes:department_list' %}">
                         <i class="fas fa-building me-2"></i>Подразделения
                     </a>

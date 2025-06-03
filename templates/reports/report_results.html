@@ -1,0 +1,90 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Результаты отчета - ЦехКонтроль{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Результаты отчета</h1>
+        <a href="{% url 'reports:report_filter' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Назад к параметрам
+        </a>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        {{ error }}
+    </div>
+    {% else %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                Отчет по линии "{{ line.name }}" за {{ date|date:"d.m.Y" }}
+                {% if shift %}
+                (Смена: {{ shift.name }})
+                {% else %}
+                (Все сутки)
+                {% endif %}
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Участок</th>
+                            <th>Отдел</th>
+                            <th>Причина</th>
+                            <th>Начало</th>
+                            <th>Конец</th>
+                            <th>Длительность</th>
+                            <th>Примечание</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for downtime in downtimes %}
+                        <tr>
+                            <td>{{ downtime.section|default:"-" }}</td>
+                            <td>{{ downtime.department|default:"-" }}</td>
+                            <td>{{ downtime.reason|default:"-" }}</td>
+                            <td>{{ downtime.start_time|date:"H:i" }}</td>
+                            <td>{{ downtime.end_time|date:"H:i"|default:"-" }}</td>
+                            <td>{{ downtime.get_duration }}</td>
+                            <td>{{ downtime.notes|default:"-" }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'downtimes:downtime_detail' downtime.pk %}" class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'downtimes:downtime_update' downtime.pk %}" class="btn btn-sm btn-outline-warning">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if user.get_role_level >= 2 %}
+                                    <a href="{% url 'downtimes:downtime_delete' downtime.pk %}" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center">Нет данных для отображения</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-primary">
+                            <td colspan="7" class="text-end"><strong>Общая длительность простоев:</strong></td>
+                            <td><strong>{{ total_duration }}</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

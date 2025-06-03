@@ -1,0 +1,54 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Главная - ЦехКонтроль{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Главная</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Активные линии</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for line in lines %}
+                        <a href="{% url 'downtimes:downtime_list' %}?line={{ line.id }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ line.name }}</h6>
+                                <small class="text-muted">ID: {{ line.id }}</small>
+                            </div>
+                        </a>
+                        {% empty %}
+                        <div class="list-group-item">Нет активных линий</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Быстрые действия</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'downtimes:downtime_list' %}" class="btn btn-primary">
+                            <i class="fas fa-list me-2"></i>Список простоев
+                        </a>
+                        <a href="{% url 'reports:report_filter' %}" class="btn btn-success">
+                            <i class="fas fa-chart-bar me-2"></i>Отчеты
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

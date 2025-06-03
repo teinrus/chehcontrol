@@ -1,0 +1,70 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Отчеты - ЦехКонтроль{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Отчеты</h1>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Параметры отчета</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="{{ form.line.id_for_label }}" class="form-label">{{ form.line.label }}</label>
+                        {{ form.line }}
+                        {% if form.line.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.line.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.date.id_for_label }}" class="form-label">{{ form.date.label }}</label>
+                        {{ form.date }}
+                        {% if form.date.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.date.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.shift.id_for_label }}" class="form-label">{{ form.shift.label }}</label>
+                        <select name="{{ form.shift.name }}" id="{{ form.shift.id_for_label }}" class="{{ form.shift.field.widget.attrs.class }}">
+                            <option value="">Все сутки</option>
+                            {% for shift in form.shift.field.queryset %}
+                                <option value="{{ shift.id }}" data-line-id="{{ shift.line.id }}" {% if form.shift.value|stringformat:"s" == shift.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ shift.name }} ({{ shift.line.name }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.shift.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.shift.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-2"></i>Сформировать отчет
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+
+<script src="{% static 'js/shift_filter.js' %}"></script>
+
+{% endblock %} 

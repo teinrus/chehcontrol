@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.contrib import messages
@@ -227,6 +227,9 @@ class DowntimeCreateView(LoginRequiredMixin, CreateView):
     fields = ['line', 'section', 'department', 'reason', 'start_time', 'end_time', 'notes']
     success_url = reverse_lazy('downtimes:downtime_list')
 
+    def get_success_url(self):
+        return self.request.POST.get('next', self.success_url)
+
     def dispatch(self, request, *args, **kwargs):
         # Проверяем права доступа
         if request.user.role not in [CustomUser.ROLE_USER, CustomUser.ROLE_ENGINEER, CustomUser.ROLE_ADMIN]:
@@ -292,6 +295,9 @@ class DowntimeUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'downtimes/downtime_form.html'
     fields = ['line', 'section', 'department', 'reason', 'start_time', 'end_time', 'notes']
     success_url = reverse_lazy('downtimes:downtime_list')
+
+    def get_success_url(self):
+        return self.request.POST.get('next', self.success_url)
 
     def dispatch(self, request, *args, **kwargs):
         # Проверяем права доступа
@@ -591,6 +597,23 @@ def get_reasons(request):
     data = [{'id': reason.id, 'name': reason.name} for reason in reasons]
     return JsonResponse(data, safe=False)
 
+@login_required
+@require_http_methods(["GET"])
+def get_shifts(request):
+    line_id = request.GET.get('line')
+    print(f"Received line_id: {line_id}")  # Отладочная информация
+    
+    if not line_id:
+        print("No line_id provided, returning empty list")  # Отладочная информация
+        return JsonResponse([], safe=False)
+    
+    shifts = Shift.objects.filter(line_id=line_id, is_active=True).order_by('start_time')
+    print(f"Found shifts: {shifts}")  # Отладочная информация
+    
+    data = [{'id': shift.id, 'name': shift.name} for shift in shifts]
+    print(f"Returning data: {data}")  # Отладочная информация
+    return JsonResponse(data, safe=False)
+
 # Представления для смен
 class ShiftListView(LoginRequiredMixin, ListView):
     model = Shift
@@ -643,3 +666,12 @@ class ShiftDeleteView(LoginRequiredMixin, DeleteView):
     def delete(self, request, *args, **kwargs):
         messages.success(request, 'Смена успешно удалена')
         return super().delete(request, *args, **kwargs)
+
+class DashboardView(LoginRequiredMixin, TemplateView):
+    template_name = 'downtimes/dashboard.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['lines'] = Line.objects.filter(is_active=True)
+        context['current_time'] = timezone.now()
+        return context

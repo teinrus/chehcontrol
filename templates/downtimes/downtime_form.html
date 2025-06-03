@@ -28,6 +28,7 @@
         <div class="card-body">
             <form method="post" novalidate>
                 {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.META.HTTP_REFERER }}">
                 
                 <div class="row">
                     <div class="col-md-6">
@@ -213,6 +214,20 @@ document.addEventListener('DOMContentLoaded', function() {
         loadReasons(departmentSelect.value);
     } else {
         reasonSelect.disabled = true;
+    }
+
+    // Обработка кнопки "Отмена"
+    const cancelButton = document.querySelector('a.btn-outline-secondary');
+    if (cancelButton) {
+        cancelButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const nextUrl = document.querySelector('input[name="next"]').value;
+            if (nextUrl) {
+                window.location.href = nextUrl;
+            } else {
+                window.location.href = "{% url 'downtimes:downtime_list' %}";
+            }
+        });
     }
 });
 </script>

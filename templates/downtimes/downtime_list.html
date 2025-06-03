@@ -61,10 +61,11 @@
                                         <a href="{% url 'downtimes:downtime_detail' downtime.pk %}" class="btn btn-sm btn-outline-info">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        {% if user.role == 'engineer' or user.role == 'admin' or downtime.created_by == user %}
-                                            <a href="{% url 'downtimes:downtime_update' downtime.pk %}" class="btn btn-sm btn-outline-warning">
+                                       
+                                        <a href="{% url 'downtimes:downtime_update' downtime.pk %}" class="btn btn-sm btn-outline-warning">
                                                 <i class="fas fa-edit"></i>
                                             </a>
+                                            {% if user.get_role_level >= 2 %}
                                             <a href="{% url 'downtimes:downtime_delete' downtime.pk %}" class="btn btn-sm btn-outline-danger">
                                                 <i class="fas fa-trash"></i>
                                             </a>

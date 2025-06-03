@@ -43,4 +43,8 @@ urlpatterns = [
     path('shifts/create/', views.ShiftCreateView.as_view(), name='shift_create'),
     path('shifts/<int:pk>/update/', views.ShiftUpdateView.as_view(), name='shift_update'),
     path('shifts/<int:pk>/delete/', views.ShiftDeleteView.as_view(), name='shift_delete'),
+
+    path('get_sections/', views.get_sections, name='get_sections'),
+    path('get_reasons/', views.get_reasons, name='get_reasons'),
+    path('get_shifts/', views.get_shifts, name='get_shifts'),
 ] 

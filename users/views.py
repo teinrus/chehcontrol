@@ -8,6 +8,8 @@ from django.contrib import messages
 from .models import CustomUser
 from .decorators import role_required
 from django.contrib.auth import authenticate
+from django.contrib.auth.forms import UserCreationForm
+from .forms import CustomUserCreationForm, CustomUserUpdateForm
 
 # Create your views here.
 
@@ -50,33 +52,32 @@ class UserListView(LoginRequiredMixin, ListView):
 
 class UserCreateView(LoginRequiredMixin, CreateView):
     model = CustomUser
+    form_class = CustomUserCreationForm
     template_name = 'users/user_form.html'
-    fields = ['username', 'email', 'full_name', 'role', 'is_active', 'password']
-    success_url = reverse_lazy('user_list')
+    success_url = reverse_lazy('users:user_list')
 
     def form_valid(self, form):
-        user = form.save(commit=False)
-        user.set_password(form.cleaned_data['password'])
-        user.save()
-        
+        response = super().form_valid(form)
         messages.success(self.request, 'Пользователь успешно создан')
-        return super().form_valid(form)
+        return response
 
 class UserUpdateView(LoginRequiredMixin, UpdateView):
     model = CustomUser
+    form_class = CustomUserUpdateForm
     template_name = 'users/user_form.html'
-    fields = ['username', 'email', 'full_name', 'role', 'is_active']
-    success_url = reverse_lazy('user_list')
+    success_url = reverse_lazy('users:user_list')
 
     def form_valid(self, form):
+        response = super().form_valid(form)
         messages.success(self.request, 'Пользователь успешно обновлен')
-        return super().form_valid(form)
+        return response
 
 class UserDeleteView(LoginRequiredMixin, DeleteView):
     model = CustomUser
     template_name = 'users/user_confirm_delete.html'
-    success_url = reverse_lazy('user_list')
+    success_url = reverse_lazy('users:user_list')
 
     def delete(self, request, *args, **kwargs):
+        response = super().delete(request, *args, **kwargs)
         messages.success(request, 'Пользователь успешно удален')
-        return super().delete(request, *args, **kwargs)
+        return response

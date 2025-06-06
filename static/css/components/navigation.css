@@ -1,0 +1,81 @@
+.navbar {
+    background-color: var(--nav-bg) !important;
+    color: var(--nav-text);
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
+    height: 56px;
+}
+
+.navbar-brand {
+    font-weight: 500;
+}
+
+.nav-link {
+    color: var(--text-color);
+    padding: 10px 20px;
+}
+
+.nav-link:hover {
+    background-color: var(--link-hover-bg);
+}
+
+.nav-link.active {
+    background-color: var(--active-link-bg);
+    color: var(--active-link-text) !important;
+}
+
+.sidebar {
+    position: fixed;
+    top: 56px;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 20px 0;
+    box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+    background-color: var(--bg-color);
+    width: 240px;
+}
+
+.sidebar-sticky {
+    position: relative;
+    top: 0;
+    height: calc(100vh - 56px);
+    padding-top: .5rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.user-info {
+    padding: 15px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.user-info h6 {
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.user-info small {
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+.user-info .role-text {
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+.navbar .user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.navbar .user-info .user-email {
+    color: var(--text-color);
+    font-size: 0.875rem;
+}
+
+.logout-form {
+    margin: 0;
+    padding: 0;
+} 

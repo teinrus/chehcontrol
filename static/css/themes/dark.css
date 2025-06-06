@@ -1,0 +1,22 @@
+[data-theme="dark"] {
+    --bg-color: #212529;
+    --text-color: #f8f9fa;
+    --nav-bg: #343a40;
+    --nav-text: #f8f9fa;
+    --link-hover-bg: #495057;
+    --active-link-bg: #0d6efd;
+    --active-link-text: #fff;
+    --table-bg: #2c3034;
+    --table-hover-bg: #373b3e;
+    --input-bg: #343a40;
+    --input-border: #495057;
+    --input-focus-bg: #0d6efd;
+    --input-focus-border: #0d6efd;
+    --input-disabled-bg: #343a40;
+    --input-disabled-border: #495057;
+    --text-muted: #6c757d;
+    --danger: #dc3545;
+    --primary: #0d6efd;
+    --primary-hover: #0a58ca;
+    --white: #fff;
+} 

@@ -1,0 +1,39 @@
+.main-content {
+    margin-left: 240px;
+    padding: 20px;
+    min-height: calc(100vh - 56px);
+}
+
+/* Стили для карточек */
+.card {
+    background-color: var(--bg-color);
+    border-color: var(--link-hover-bg);
+}
+
+.card-header {
+    background-color: var(--link-hover-bg);
+    border-bottom-color: var(--link-hover-bg);
+}
+
+.card-title {
+    color: var(--text-color);
+}
+
+/* Стили для списков */
+.list-group-item {
+    background-color: var(--bg-color);
+    border-color: var(--link-hover-bg);
+    color: var(--text-color);
+}
+
+.list-group-item:hover {
+    background-color: var(--link-hover-bg);
+}
+
+.list-group-item-action {
+    color: var(--text-color);
+}
+
+.list-group-item-action:hover {
+    background-color: var(--link-hover-bg);
+} 

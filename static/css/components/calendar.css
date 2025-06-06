@@ -132,12 +132,6 @@
     border: 1px solid var(--bs-border-color);
 }
 
-.badge {
-    font-size: 0.8em;
-    padding: 4px 8px;
-    border-radius: 12px;
-}
-
 .add-plan-btn {
     width: 100%;
     margin-top: 8px;

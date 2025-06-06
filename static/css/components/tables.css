@@ -1,0 +1,38 @@
+/* Стили для таблиц */
+.table {
+    color: var(--text-color) !important;
+    border-color: var(--link-hover-bg) !important;
+}
+
+.table thead th {
+    background-color: var(--nav-bg) !important;
+    border-bottom: 2px solid var(--link-hover-bg) !important;
+    color: var(--text-color) !important;
+    font-weight: 600;
+    padding: 12px;
+}
+
+/* Переопределение стилей Bootstrap для таблиц */
+[data-theme="dark"] .table,
+[data-theme="dark"] .table * {
+    background-color: var(--table-bg) !important;
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .table thead th {
+    background-color: var(--nav-bg) !important;
+}
+
+[data-theme="dark"] .table tbody tr {
+    background-color: var(--table-bg) !important;
+}
+
+[data-theme="dark"] .table tbody tr:hover {
+    background-color: var(--table-hover-bg) !important;
+}
+
+[data-theme="dark"] .table td,
+[data-theme="dark"] .table th {
+    border-color: var(--link-hover-bg) !important;
+    color: var(--text-color) !important;
+} 

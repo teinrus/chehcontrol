@@ -46,6 +46,10 @@
         </div>
         <div class="sidebar-sticky">
             <ul class="nav flex-column">
+    
+                <!-- Категория: Главное -->
+                <li class="nav-item text-muted small mt-3 mb-1 ps-2">Главное</li>
+    
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
                         <i class="fas fa-home me-2"></i>Главная
@@ -61,7 +65,11 @@
                         <i class="fas fa-chart-bar me-2"></i>Отчеты
                     </a>
                 </li>
+    
                 {% if user.get_role_level >= 2 %}
+                <!-- Категория: Производство -->
+                <li class="nav-item text-muted small mt-3 mb-1 ps-2">Производство</li>
+    
                 <li class="nav-item">
                     <a class="nav-link {% if 'line' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'downtimes:line_list' %}">
                         <i class="fas fa-industry me-2"></i>Линии
@@ -87,17 +95,28 @@
                         <i class="fas fa-exclamation-circle me-2"></i>Причины простоев
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if 'plans' in request.path %}active{% endif %}" href="{% url 'plans:lines' %}">
+                        <i class="fas fa-calendar-alt me-2"></i>Планы производства
+                    </a>
+                </li>
                 {% endif %}
+    
                 {% if user.get_role_level >= 3 %}
+                <!-- Категория: Настройки -->
+                <li class="nav-item text-muted small mt-3 mb-1 ps-2">Настройки</li>
+    
                 <li class="nav-item">
                     <a class="nav-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'users:user_list' %}">
                         <i class="fas fa-users me-2"></i>Пользователи
                     </a>
                 </li>
                 {% endif %}
+    
             </ul>
         </div>
     </nav>
+    
     {% endif %}
 
     <!-- Основной контент -->

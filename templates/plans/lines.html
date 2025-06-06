@@ -1,0 +1,30 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load plans_tags %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Выберите производственную линию</h2>
+    <div class="row mt-4">
+        {% for line in lines %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ line.name }}</h5>
+                    <p class="card-text">{{ line.description|default:"Нет описания" }}</p>
+                    <a href="{% url 'plans:calendar' line.id %}" class="btn btn-primary">
+                        <i class="fas fa-calendar-alt me-2"></i>Просмотреть планы
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                Нет доступных производственных линий.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,789 @@
+{% extends 'plans/base.html' %}
+{% load plans_tags %}
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>План производства: {{ line.name }} ({{ month }}/{{ year }})</h2>
+        <div class="btn-group">
+            <a href="{% url 'plans:calendar' line.id %}?year={{ prev_month.year }}&month={{ prev_month.month }}" 
+               class="btn btn-outline-primary">
+                &lt; Предыдущий месяц
+            </a>
+            <a href="{% url 'plans:calendar' line.id %}?year={{ next_month.year }}&month={{ next_month.month }}" 
+               class="btn btn-outline-primary">
+                Следующий месяц &gt;
+            </a>
+        </div>
+    </div>
+
+    {% if not has_shifts %}
+    <div class="alert alert-warning" role="alert">
+        <h4 class="alert-heading">Внимание!</h4>
+        <p>Для этой линии не настроены смены. Пожалуйста, добавьте смены перед созданием планов.</p>
+        <hr>
+        <p class="mb-0">Для добавления смен перейдите в раздел "Настройки" -> "Смены".</p>
+    </div>
+    {% endif %}
+
+    <div class="prod-calendar-grid">
+        <div class="prod-calendar-row">
+            <div class="prod-calendar-cell text-center">Пн</div>
+            <div class="prod-calendar-cell text-center">Вт</div>
+            <div class="prod-calendar-cell text-center">Ср</div>
+            <div class="prod-calendar-cell text-center">Чт</div>
+            <div class="prod-calendar-cell text-center">Пт</div>
+            <div class="prod-calendar-cell text-center">Сб</div>
+            <div class="prod-calendar-cell text-center">Вс</div>
+        </div>
+        
+        {% for week in calendar %}
+        <div class="prod-calendar-row">
+            {% for day in week %}
+            <div class="prod-calendar-cell {% if day == 0 %}prod-other-month{% endif %} {% if day == today.day and month == today.month and year == today.year %}prod-today{% endif %}">
+                {% if day != 0 %}
+                <div class="prod-date-header">
+                    {{ day }}
+                </div>
+                <div class="prod-plans-container">
+                    {% get_date_key year month day as date_str %}
+                    {% if date_str in plans_by_date %}
+                        {% with plans=plans_by_date|get_item:date_str %}
+                            {% if plans|is_list %}
+                                {% for plan in plans %}
+                                <div class="prod-plan-item" data-bs-toggle="modal" data-bs-target="#planModal" 
+                                     data-plan-id="{{ plan.id }}" data-date="{{ date_str }}">
+                                    <div class="prod-shift-name">
+                                        <strong>{{ plan.shift.name }}</strong>
+                                        <span class="prod-badge {% if plan.status == 'active' %}bg-success{% elif plan.status == 'completed' %}bg-primary{% elif plan.status == 'cancelled' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                            {{ plan.get_status_display }}
+                                        </span>
+                                    </div>
+                                    <div class="prod-product-list">
+                                        {% for item in plan.items.all %}
+                                        <div class="prod-product-item">
+                                            {{ item.product.name }}: {{ item.planned_quantity }} шт. {% if item.completed_quantity %}({{ item.completed_quantity }} выполнено){% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="prod-plan-item" data-bs-toggle="modal" data-bs-target="#planModal" 
+                                     data-plan-id="{{ plans.id }}" data-date="{{ date_str }}">
+                                    <div class="prod-shift-name">
+                                        <strong>{{ plans.shift.name }}</strong>
+                                        <span class="prod-badge {% if plans.status == 'active' %}bg-success{% elif plans.status == 'completed' %}bg-primary{% elif plans.status == 'cancelled' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                            {{ plans.get_status_display }}
+                                        </span>
+                                    </div>
+                                    <div class="prod-product-list">
+                                        {% for item in plans.items.all %}
+                                        <div class="prod-product-item">
+                                            {{ item.product.name }}: {{ item.planned_quantity }} шт. {% if item.completed_quantity %}({{ item.completed_quantity }} выполнено){% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endif %}
+                            
+                            {% if has_shifts %}
+                            {% for shift in shifts %}
+                                {% if not plans|has_shift:shift.id %}
+                                <button class="btn btn-sm btn-outline-primary prod-add-plan-btn" 
+                                        data-bs-toggle="modal" data-bs-target="#planModal"
+                                        data-date="{{ date_str }}" data-shift="{{ shift.id }}">
+                                    Добавить план ({{ shift.name }})
+                                </button>
+                                {% endif %}
+                            {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+                    {% else %}
+                        {% if has_shifts %}
+                        {% for shift in shifts %}
+                        <button class="btn btn-sm btn-outline-primary prod-add-plan-btn" 
+                                data-bs-toggle="modal" data-bs-target="#planModal"
+                                data-date="{{ date_str }}" data-shift="{{ shift.id }}">
+                            Добавить план ({{ shift.name }})
+                        </button>
+                        {% endfor %}
+                        {% endif %}
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Модальное окно для создания/редактирования плана -->
+<div class="modal fade" id="planModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">План производства</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="planForm" method="post" action="{% url 'plans:create_plan' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="line" value="{{ line.id }}">
+                    <input type="hidden" name="date" id="planDate">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Смена</label>
+                        <select name="shift" class="form-select" required>
+                            <option value="">Выберите смену</option>
+                            {% for shift in shifts %}
+                            <option value="{{ shift.id }}">{{ shift.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Статус</label>
+                        <select name="status" class="form-select" required>
+                            <option value="">Выберите статус</option>
+                            {% for status_value, status_label in status_choices %}
+                            <option value="{{ status_value }}" {% if status_value == 'draft' %}selected{% endif %}>
+                                {{ status_label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div id="planItems">
+                        <div class="plan-item-form mb-3">
+                            <div class="row">
+                                <div class="col">
+                                    <label class="form-label">Продукт</label>
+                                    <select name="products[]" class="form-select" required>
+                                        <option value="">Выберите продукт</option>
+                                        {% for product in products %}
+                                        <option value="{{ product.id }}">{{ product.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col">
+                                    <label class="form-label">Плановое количество</label>
+                                    <input type="number" name="quantities[]" class="form-control" required min="1">
+                                </div>
+                                <div class="col">
+                                    <label class="form-label">Фактическое количество</label>
+                                    <input type="number" name="completed_quantities[]" class="form-control" min="0" value="0">
+                                </div>
+                                <div class="col-auto d-flex align-items-end">
+                                    <button type="button" class="btn btn-danger remove-item mb-3">
+                                        Удалить
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-secondary" id="addItem">
+                        Добавить продукт
+                    </button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" form="planForm" class="btn btn-primary">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+[data-bs-theme="light"] .prod-calendar-grid {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    border-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .prod-calendar-grid {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    border-color: var(--bs-border-color);
+}
+
+.prod-calendar-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    border: 1px solid var(--bs-border-color) !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
+}
+
+.prod-calendar-row {
+    display: flex !important;
+    min-height: 120px !important;
+    border-bottom: 1px solid var(--bs-border-color) !important;
+    background-color: var(--bs-body-bg) !important;
+}
+
+.prod-calendar-row:last-child {
+    border-bottom: none !important;
+}
+
+.prod-calendar-cell {
+    flex: 1 !important;
+    min-height: 120px !important;
+    padding: 8px !important;
+    border-right: 1px solid var(--bs-border-color) !important;
+    background-color: var(--bs-body-bg) !important;
+    color: var(--bs-body-color) !important;
+    position: relative !important;
+}
+
+.prod-calendar-cell:last-child {
+    border-right: none !important;
+}
+
+.prod-calendar-cell.prod-other-month {
+    background-color: var(--bs-tertiary-bg) !important;
+    color: var(--bs-secondary-color) !important;
+}
+
+.prod-calendar-cell.prod-today {
+    background-color: var(--bs-primary-bg-subtle) !important;
+    border: 3px solid var(--bs-primary) !important;
+    box-shadow: 0 0 10px var(--bs-primary-border-subtle) !important;
+}
+
+.prod-calendar-cell.prod-today::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 4px !important;
+    background-color: var(--bs-primary) !important;
+}
+
+.prod-calendar-cell.prod-today .prod-date-header {
+    background-color: var(--bs-primary) !important;
+    color: var(--bs-primary-text-emphasis) !important;
+    font-weight: bold !important;
+    padding: 6px 10px !important;
+    border-radius: 4px !important;
+    display: inline-block !important;
+    min-width: 35px !important;
+    text-align: center !important;
+    box-shadow: 0 2px 4px var(--bs-primary-border-subtle) !important;
+}
+
+.prod-date-header {
+    font-weight: bold !important;
+    margin-bottom: 8px !important;
+    padding: 4px !important;
+    border-radius: 4px !important;
+    background-color: var(--bs-tertiary-bg) !important;
+    color: var(--bs-body-color) !important;
+    text-align: center !important;
+}
+
+.prod-plans-container {
+    font-size: 0.9em !important;
+    color: var(--bs-body-color) !important;
+}
+
+.prod-plan-item {
+    background-color: var(--bs-tertiary-bg) !important;
+    border: 1px solid var(--bs-border-color) !important;
+    border-radius: 4px !important;
+    padding: 8px !important;
+    margin-bottom: 8px !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s !important;
+    color: var(--bs-body-color) !important;
+}
+
+.prod-plan-item:hover {
+    background-color: var(--bs-secondary-bg) !important;
+}
+
+.prod-shift-name {
+    font-weight: bold !important;
+    margin-bottom: 4px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    color: var(--bs-body-color) !important;
+}
+
+.prod-product-list {
+    margin-top: 4px !important;
+}
+
+.prod-product-item {
+    font-size: 0.9em !important;
+    color: var(--bs-body-color) !important;
+    margin-bottom: 4px !important;
+    padding: 2px 4px !important;
+    background-color: var(--bs-body-bg) !important;
+    border-radius: 2px !important;
+}
+
+.prod-badge {
+    font-size: 0.8em !important;
+    padding: 4px 8px !important;
+}
+
+.prod-add-plan-btn {
+    width: 100% !important;
+    margin-top: 4px !important;
+    padding: 4px 8px !important;
+    font-size: 0.85em !important;
+    background-color: var(--bs-body-bg) !important;
+    color: var(--bs-primary) !important;
+    border-color: var(--bs-primary) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+.prod-add-plan-btn:hover {
+    background-color: var(--bs-primary) !important;
+    color: var(--bs-primary-text-emphasis) !important;
+}
+
+/* Стили для заголовков дней недели */
+.prod-calendar-row:first-child .prod-calendar-cell {
+    background-color: var(--bs-tertiary-bg) !important;
+    color: var(--bs-body-color) !important;
+    font-weight: bold !important;
+    padding: 12px 8px !important;
+}
+
+/* Стили для темной темы */
+[data-bs-theme="dark"] .prod-calendar-cell {
+    background-color: var(--bs-dark) !important;
+    color: var(--bs-light) !important;
+}
+
+[data-bs-theme="dark"] .prod-calendar-cell.prod-other-month {
+    background-color: var(--bs-dark) !important;
+    color: var(--bs-gray-500) !important;
+}
+
+[data-bs-theme="dark"] .prod-plan-item {
+    background-color: var(--bs-dark) !important;
+    border-color: var(--bs-gray-700) !important;
+}
+
+[data-bs-theme="dark"] .prod-plan-item:hover {
+    background-color: var(--bs-gray-800) !important;
+}
+
+[data-bs-theme="dark"] .prod-product-item {
+    background-color: var(--bs-gray-800) !important;
+    border-color: var(--bs-gray-700) !important;
+}
+
+[data-bs-theme="dark"] .prod-date-header {
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+}
+
+[data-bs-theme="dark"] .prod-calendar-row:first-child .prod-calendar-cell {
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+}
+
+[data-bs-theme="dark"] .prod-add-plan-btn {
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+    border-color: var(--bs-gray-600) !important;
+}
+
+[data-bs-theme="dark"] .prod-add-plan-btn:hover {
+    background-color: var(--bs-gray-700) !important;
+    color: var(--bs-light) !important;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Функция для обновления стилей календаря при смене темы
+    function updateCalendarTheme() {
+        const isDarkTheme = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        const calendarGrid = document.querySelector('.prod-calendar-grid');
+        const cells = document.querySelectorAll('.prod-calendar-cell');
+        const planItems = document.querySelectorAll('.prod-plan-item');
+        const dateHeaders = document.querySelectorAll('.prod-date-header');
+        
+        if (isDarkTheme) {
+            calendarGrid.style.backgroundColor = 'var(--bs-dark)';
+            calendarGrid.style.color = 'var(--bs-light)';
+            
+            cells.forEach(cell => {
+                cell.style.backgroundColor = 'var(--bs-dark)';
+                cell.style.color = 'var(--bs-light)';
+                if (cell.classList.contains('prod-other-month')) {
+                    cell.style.color = 'var(--bs-gray-400)';
+                }
+            });
+            
+            planItems.forEach(item => {
+                item.style.backgroundColor = 'var(--bs-gray-800)';
+                item.style.borderColor = 'var(--bs-gray-700)';
+                item.style.color = 'var(--bs-light)';
+            });
+            
+            dateHeaders.forEach(header => {
+                header.style.backgroundColor = 'var(--bs-gray-800)';
+                header.style.color = 'var(--bs-light)';
+            });
+
+            // Обновляем стили для заголовков дней недели
+            document.querySelectorAll('.prod-calendar-row:first-child .prod-calendar-cell').forEach(cell => {
+                cell.style.backgroundColor = 'var(--bs-gray-800)';
+                cell.style.color = 'var(--bs-light)';
+            });
+
+            // Обновляем стили для кнопки добавления плана
+            document.querySelectorAll('.prod-add-plan-btn').forEach(btn => {
+                btn.style.backgroundColor = 'var(--bs-gray-800)';
+                btn.style.color = 'var(--bs-light)';
+                btn.style.borderColor = 'var(--bs-gray-600)';
+            });
+        } else {
+            calendarGrid.style.backgroundColor = 'var(--bs-body-bg)';
+            calendarGrid.style.color = 'var(--bs-body-color)';
+            
+            cells.forEach(cell => {
+                cell.style.backgroundColor = 'var(--bs-body-bg)';
+                cell.style.color = 'var(--bs-body-color)';
+                if (cell.classList.contains('prod-other-month')) {
+                    cell.style.color = 'var(--bs-secondary-color)';
+                }
+            });
+            
+            planItems.forEach(item => {
+                item.style.backgroundColor = 'var(--bs-tertiary-bg)';
+                item.style.borderColor = 'var(--bs-border-color)';
+                item.style.color = 'var(--bs-body-color)';
+            });
+            
+            dateHeaders.forEach(header => {
+                header.style.backgroundColor = 'var(--bs-tertiary-bg)';
+                header.style.color = 'var(--bs-body-color)';
+            });
+
+            // Возвращаем стили для заголовков дней недели
+            document.querySelectorAll('.prod-calendar-row:first-child .prod-calendar-cell').forEach(cell => {
+                cell.style.backgroundColor = 'var(--bs-tertiary-bg)';
+                cell.style.color = 'var(--bs-body-color)';
+            });
+
+            // Возвращаем стили для кнопки добавления плана
+            document.querySelectorAll('.prod-add-plan-btn').forEach(btn => {
+                btn.style.backgroundColor = 'var(--bs-body-bg)';
+                btn.style.color = 'var(--bs-primary)';
+                btn.style.borderColor = 'var(--bs-primary)';
+            });
+        }
+    }
+
+    // Функция для переключения темы
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-bs-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateCalendarTheme();
+    }
+
+    // Добавляем обработчик для кнопки переключения темы
+    const themeToggleBtn = document.getElementById('themeToggle');
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            toggleTheme();
+        });
+    }
+
+    // Проверяем текущую тему и применяем стили
+    function checkAndApplyTheme() {
+        // Проверяем, есть ли сохраненная тема в localStorage
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        }
+        // Применяем стили
+        updateCalendarTheme();
+    }
+
+    // Вызываем функцию при загрузке страницы
+    checkAndApplyTheme();
+
+    // Наблюдаем за изменениями атрибута data-bs-theme
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.attributeName === 'data-bs-theme') {
+                updateCalendarTheme();
+            }
+        });
+    });
+
+    // Начинаем наблюдение за изменениями
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-bs-theme']
+    });
+
+    // Вызываем функцию при загрузке страницы
+    function highlightCurrentDay() {
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth() + 1;
+        const currentDay = today.getDate();
+
+        // Удаляем все существующие выделения
+        document.querySelectorAll('.prod-calendar-cell').forEach(cell => {
+            cell.classList.remove('prod-today');
+        });
+
+        // Находим и выделяем текущий день
+        const cells = document.querySelectorAll('.prod-calendar-cell');
+        cells.forEach(cell => {
+            const dateStr = cell.querySelector('.prod-add-plan-btn')?.getAttribute('data-date') || 
+                          cell.querySelector('.prod-plan-item')?.getAttribute('data-date');
+            
+            if (dateStr) {
+                const [year, month, day] = dateStr.split('-').map(Number);
+                
+                if (year === currentYear && month === currentMonth && day === currentDay) {
+                    cell.classList.add('prod-today');
+                }
+            }
+        });
+    }
+
+    // Вызываем функцию при загрузке страницы
+    highlightCurrentDay();
+
+    // Существующий код для модального окна
+    const planModal = document.getElementById('planModal');
+    const planForm = document.getElementById('planForm');
+    const planItems = document.getElementById('planItems');
+    const addItemBtn = document.getElementById('addItem');
+    
+    // Обработчик открытия модального окна
+    planModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const date = button.getAttribute('data-date');
+        const planId = button.getAttribute('data-plan-id');
+        const shiftId = button.getAttribute('data-shift');
+        
+        // Устанавливаем дату в скрытое поле формы
+        document.getElementById('planDate').value = date;
+        
+        // Если указана смена, выбираем её в селекте
+        if (shiftId) {
+            planForm.querySelector('[name="shift"]').value = shiftId;
+        }
+        
+        // Если это существующий план, загружаем его данные
+        if (planId) {
+            // Меняем URL формы на редактирование
+            planForm.action = `/plans/edit/${planId}/`;
+            
+            // Загружаем данные плана
+            fetch(`/plans/get/${planId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Заполняем форму данными
+                        planForm.querySelector('[name="shift"]').value = data.plan.shift_id;
+                        planForm.querySelector('[name="status"]').value = data.plan.status;
+                        
+                        // Очищаем существующие элементы продуктов
+                        planItems.innerHTML = '';
+                        
+                        // Добавляем продукты
+                        data.plan.items.forEach(item => {
+                            const itemForm = createProductForm();
+                            planItems.appendChild(itemForm);
+                            
+                            // Ждем, пока DOM обновится
+                            requestAnimationFrame(() => {
+                                const productSelect = itemForm.querySelector('[name="products[]"]');
+                                const quantityInput = itemForm.querySelector('[name="quantities[]"]');
+                                const completedQuantityInput = itemForm.querySelector('[name="completed_quantities[]"]');
+                                
+                                // Устанавливаем значения
+                                productSelect.value = item.product_id;
+                                quantityInput.value = item.planned_quantity;
+                                completedQuantityInput.value = item.completed_quantity || 0;
+                            });
+                        });
+
+                        // Сохраняем оригинальный ID смены и ID плана для сравнения
+                        planForm.dataset.originalShiftId = data.plan.shift_id;
+                        planForm.dataset.originalPlanId = planId;
+                    } else {
+                        alert('Ошибка загрузки данных плана: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Ошибка при загрузке данных плана');
+                });
+        } else {
+            // Если это новый план, сбрасываем форму
+            planForm.action = "{% url 'plans:create_plan' %}";
+            planForm.reset();
+            planItems.innerHTML = '';
+            const itemForm = createProductForm();
+            planItems.appendChild(itemForm);
+            
+            // Очищаем сохраненные данные
+            delete planForm.dataset.originalShiftId;
+            delete planForm.dataset.originalPlanId;
+        }
+    });
+    
+    // Функция для создания нового элемента формы продукта
+    function createProductForm() {
+        const template = `
+            <div class="plan-item-form mb-3">
+                <div class="row">
+                    <div class="col">
+                        <label class="form-label">Продукт</label>
+                        <select name="products[]" class="form-select" required>
+                            <option value="">Выберите продукт</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col">
+                        <label class="form-label">Плановое количество</label>
+                        <input type="number" name="quantities[]" class="form-control" required min="1">
+                    </div>
+                    <div class="col">
+                        <label class="form-label">Фактическое количество</label>
+                        <input type="number" name="completed_quantities[]" class="form-control" min="0" value="0">
+                    </div>
+                    <div class="col-auto d-flex align-items-end">
+                        <button type="button" class="btn btn-danger remove-item mb-3">
+                            Удалить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        const div = document.createElement('div');
+        div.innerHTML = template;
+        return div.firstElementChild;
+    }
+    
+    // Добавление нового продукта
+    addItemBtn.addEventListener('click', function() {
+        const itemForm = createProductForm();
+        planItems.appendChild(itemForm);
+    });
+    
+    // Удаление продукта
+    planItems.addEventListener('click', function(event) {
+        if (event.target.classList.contains('remove-item')) {
+            const itemForm = event.target.closest('.plan-item-form');
+            if (planItems.querySelectorAll('.plan-item-form').length > 1) {
+                itemForm.remove();
+            } else {
+                alert('Должен быть указан хотя бы один продукт');
+            }
+        }
+    });
+    
+    // Обработчик отправки формы
+    planForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        
+        const formData = new FormData(planForm);
+        const originalShiftId = planForm.dataset.originalShiftId;
+        const currentShiftId = formData.get('shift');
+        
+        // Если это редактирование и смена изменилась
+        if (originalShiftId && originalShiftId !== currentShiftId) {
+            // Сначала удаляем старый план
+            const planId = planForm.dataset.originalPlanId;
+            fetch(`/plans/delete/${planId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // После удаления создаем новый план
+                    submitForm(formData);
+                } else {
+                    alert('Ошибка при удалении старого плана: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ошибка при удалении старого плана');
+            });
+        } else {
+            // Если смена не изменилась или это новый план
+            submitForm(formData);
+        }
+    });
+
+    function submitForm(formData) {
+        // Добавляем все поля формы в FormData
+        const products = formData.getAll('products[]');
+        const quantities = formData.getAll('quantities[]');
+        const completedQuantities = formData.getAll('completed_quantities[]');
+
+        // Очищаем FormData и добавляем поля заново
+        formData = new FormData();
+        formData.append('line', document.querySelector('[name="line"]').value);
+        formData.append('date', document.querySelector('[name="date"]').value);
+        formData.append('shift', document.querySelector('[name="shift"]').value);
+        formData.append('status', document.querySelector('[name="status"]').value);
+
+        // Добавляем продукты и их количества
+        products.forEach((product, index) => {
+            formData.append('products[]', product);
+            formData.append('quantities[]', quantities[index]);
+            formData.append('completed_quantities[]', completedQuantities[index] || '0');
+        });
+
+        fetch(planForm.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Закрываем модальное окно
+                const modal = bootstrap.Modal.getInstance(planModal);
+                modal.hide();
+                
+                // Перезагружаем страницу для обновления календаря
+                window.location.reload();
+            } else {
+                alert('Ошибка: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ошибка при сохранении плана');
+        });
+    }
+});
+</script>
+{% endblock %} 

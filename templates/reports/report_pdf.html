@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Отчет по простоям</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .header h2 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .header h3 {
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f0f0f0;
+        }
+        .footer {
+            margin-top: 20px;
+            text-align: right;
+            font-size: 12px;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin: 20px 0 10px 0;
+        }
+        .badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: normal;
+        }
+        .badge-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .badge-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        .badge-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        .badge-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Отчет по простоям</h1>
+        <h2>Линия: {{ line.name }}</h2>
+        <h3>Дата: {{ date|date:"d.m.Y" }}</h3>
+        {% if shift %}
+        <h3>Смена: {{ shift.name }}</h3>
+        {% else %}
+        <h3>Все сутки</h3>
+        {% endif %}
+    </div>
+
+    <!-- Планы производства -->
+    <div class="section-title">Планы производства</div>
+    {% if plans %}
+    <table>
+        <thead>
+            <tr>
+                <th>Смена</th>
+                <th>Статус</th>
+                <th>Продукция</th>
+                <th>План</th>
+                <th>Выполнено</th>
+                <th>% выполнения</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for plan in plans %}
+            {% for item in plan.items.all %}
+            <tr>
+                {% if forloop.first %}
+                <td rowspan="{{ plan.items.count }}">{{ plan.shift.name }}</td>
+                <td rowspan="{{ plan.items.count }}">
+                    <span class="badge {% if plan.status == 'active' %}badge-success{% elif plan.status == 'completed' %}badge-primary{% elif plan.status == 'cancelled' %}badge-danger{% else %}badge-secondary{% endif %}">
+                        {{ plan.get_status_display }}
+                    </span>
+                </td>
+                {% endif %}
+                <td>{{ item.product.name }}</td>
+                <td>{{ item.planned_quantity }}</td>
+                <td>{{ item.completed_quantity }}</td>
+                <td>{{ item.get_completion_percentage|floatformat:1 }}%</td>
+            </tr>
+            {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Планы производства отсутствуют</p>
+    {% endif %}
+
+    <!-- Простои -->
+    <div class="section-title">Простои</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Участок</th>
+                <th>Отдел</th>
+                <th>Причина</th>
+                <th>Начало</th>
+                <th>Конец</th>
+                <th>Длительность</th>
+                <th>Примечание</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for downtime in downtimes %}
+            <tr>
+                <td>{{ downtime.section|default:"-" }}</td>
+                <td>{{ downtime.department|default:"-" }}</td>
+                <td>{{ downtime.reason|default:"-" }}</td>
+                <td>{{ downtime.start_time|date:"H:i" }}</td>
+                <td>{{ downtime.end_time|date:"H:i"|default:"-" }}</td>
+                <td>{{ downtime.get_duration }}</td>
+                <td>{{ downtime.notes|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center;">Нет данных для отображения</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="6" style="text-align: right;"><strong>Общая длительность простоев:</strong></td>
+                <td><strong>{{ total_duration }}</strong></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="footer">
+        <p>Отчет сформирован: {% now "d.m.Y H:i" %}</p>
+    </div>
+</body>
+</html> 

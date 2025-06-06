@@ -1,0 +1,167 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/plans.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4">Планы производства</h1>
+            
+            {% if not line %}
+            <!-- Список линий -->
+            <div class="row">
+                {% for line in lines %}
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ line.name }}</h5>
+                            <p class="card-text">{{ line.description|default:"Нет описания" }}</p>
+                            {% if line.id %}
+                            <a href="{% url 'plans:calendar' line.id %}" class="btn btn-primary">
+                                Просмотреть планы
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <!-- Календарь планов -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ line.name }}</h5>
+                    <div class="btn-group">
+                        {% if line.id %}
+                        <a href="{% url 'plans:calendar' line.id %}?month={{ prev_month }}" 
+                           class="btn btn-outline-secondary">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                        <span class="btn btn-outline-secondary disabled">
+                            {{ current_month|date:"F Y" }}
+                        </span>
+                        <a href="{% url 'plans:calendar' line.id %}?month={{ next_month }}" 
+                           class="btn btn-outline-secondary">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="calendar-grid">
+                        {% for week in calendar %}
+                        <div class="calendar-row">
+                            {% for day in week %}
+                            <div class="calendar-cell {% if day.is_today %}today{% endif %} {% if day.is_current_month %}current-month{% else %}other-month{% endif %}">
+                                <div class="date-header">
+                                    {{ day.date|date:"j" }}
+                                </div>
+                                <div class="plans-container">
+                                    {% for plan in day.plans %}
+                                    <div class="plan-item" 
+                                         data-plan-id="{{ plan.id }}"
+                                         data-bs-toggle="modal" 
+                                         data-bs-target="#planModal">
+                                        <div class="shift-name">{{ plan.shift.name }}</div>
+                                        {% for item in plan.items.all %}
+                                        <div class="product-item">
+                                            {{ item.product.name }} - {{ item.planned_quantity }} шт.
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% if day.is_current_month %}
+                                <button class="btn btn-sm btn-outline-primary add-plan-btn"
+                                        data-date="{{ day.date|date:'Y-m-d' }}"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#planModal">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для плана -->
+{% if line and line.id %}
+<div class="modal fade" id="planModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">План производства</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="planForm" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="line" value="{{ line.id }}">
+                    <input type="hidden" name="date" id="planDate">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Смена</label>
+                        <select name="shift" class="form-select" required>
+                            <option value="">Выберите смену</option>
+                            {% for shift in line.shifts.all %}
+                            <option value="{{ shift.id }}">{{ shift.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div id="planItems">
+                        <div class="plan-item-form mb-3">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Продукция</label>
+                                    <select name="product[]" class="form-select" required>
+                                        <option value="">Выберите продукцию</option>
+                                        {% for product in line.products.all %}
+                                        <option value="{{ product.id }}">{{ product.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Количество</label>
+                                    <input type="number" name="planned_quantity[]" 
+                                           class="form-control" required min="1">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="button" class="btn btn-danger remove-item">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn btn-secondary" id="addItem">
+                        Добавить позицию
+                    </button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="savePlan">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/plans.js' %}"></script>
+{% endblock %} 

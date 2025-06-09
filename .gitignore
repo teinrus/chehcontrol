@@ -20,14 +20,10 @@ wheels/
 .installed.cfg
 *.egg
 
-# Django
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-media
-
 # Virtual Environment
+.env
+.venv
+env/
 venv/
 ENV/
 
@@ -36,6 +32,14 @@ ENV/
 .vscode/
 *.swp
 *.swo
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+jobs.sqlite
+jobs.sqlite-journal
 
 # OS
 .DS_Store

@@ -1,5 +1,3 @@
-from datetime import datetime, time
-
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -26,14 +24,13 @@ class Line(models.Model):
 
     def get_active_shift(self, dt=None):
         """
-        Получить активную смену для указанного времени
-        Если время не указано, используется текущее время
+        Получить активную смену для указанного времени.
+        Если время не указано, используется текущее время.
         """
         if dt is None:
             dt = timezone.now()
 
         current_time = dt.time()
-        current_date = dt.date()
 
         # Получаем все активные смены
         active_shifts = self.shifts.filter(is_active=True)
@@ -46,8 +43,13 @@ class Line(models.Model):
                     return shift
             else:
                 # Обычная смена
-                if shift.start_time <= current_time < shift.end_time:
+                if shift.start_time <= current_time and current_time < shift.end_time:
                     return shift
+
+        # Если текущее время между полуночью и началом первой смены,
+        # возвращаем последнюю смену предыдущего дня
+        if current_time < active_shifts.first().start_time:
+            return active_shifts.last()
 
         return None
 

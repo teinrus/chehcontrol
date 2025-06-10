@@ -1,310 +1,232 @@
 import logging
-from datetime import datetime
+from datetime import datetime, time, timedelta
 
-from django.db import transaction
-from django.db.models import Q
-from django.utils import timezone
+import pytz
+from django.contrib.auth import get_user_model
+from django.utils.timezone import localtime, make_aware, now
 
 from downtimes.models import Downtime, Line
-from users.models import CustomUser
-
-from .models import Task
 
 logger = logging.getLogger("app_task")
+User = get_user_model()
+
+# Определяем московский часовой пояс
+MOSCOW_TZ = pytz.timezone("Europe/Moscow")
 
 
-def get_system_user():
-    """
-    Получает системного пользователя с username='sys_user'
-    """
+def is_current_shift(shift_start, shift_end, current_time):
+    """Проверяет, является ли смена текущей"""
+    # Если current_time уже является time объектом, используем его как есть
+    if isinstance(current_time, time):
+        current_time_obj = current_time
+    else:
+        current_time_obj = current_time.time()
+
+    # Если смена переходит через полночь (например, 20:00 - 09:15)
+    if shift_end < shift_start:
+        return current_time_obj >= shift_start or current_time_obj <= shift_end
+    # Если смена в пределах одного дня (например, 08:00 - 16:30)
+    else:
+        # Для времени 16:30 оно должно относиться к следующей смене
+        if current_time_obj == shift_end:
+            return False
+        return shift_start <= current_time_obj < shift_end
+
+
+def format_shift_time(shift_time, current_date):
+    """Форматирует время смены с учетом текущей даты"""
+    if not isinstance(shift_time, time):
+        raise ValueError(f"Expected time object, got {type(shift_time)}")
+
     try:
-        user = CustomUser.objects.get(username="sys_user", is_active=True)
-        return user
-    except CustomUser.DoesNotExist:
-        logger.error("Системный пользователь 'sys_user' не найден или неактивен")
+        naive_dt = datetime.combine(current_date, shift_time)
+        return make_aware(naive_dt)
+    except Exception:
+        raise
+
+
+def get_shift_for_time(line, target_time):
+    """Получает смену для указанного времени"""
+    shifts = getattr(line, "shifts", None)
+    if shifts is None:
         return None
 
+    # Преобразуем время в московский часовой пояс
+    if not isinstance(target_time, time):
+        target_time = target_time.astimezone(MOSCOW_TZ)
+        logger.debug(f"Время после преобразования в московский пояс: {target_time}")
 
-def check_existing_downtime(line, start_time):
-    """
-    Проверяет наличие существующего простоя в диапазоне времени
-    """
-    # Проверяем, нет ли уже активного простоя в диапазоне ±5 минут
-    time_range = timezone.timedelta(minutes=5)
-    existing_downtime = (
-        Downtime.objects.filter(
-            line=line,
-            is_active=True,
-            end_time__isnull=True,
-            start_time__lte=start_time + time_range,
-            start_time__gte=start_time - time_range,
-        )
-        .order_by("-start_time")
-        .first()
-    )
+    target_time_obj = target_time.time()
+    logger.debug(f"Ищем смену для времени: {target_time_obj}")
 
-    if existing_downtime:
-        logger.info(
-            f"Found existing active downtime {existing_downtime.id} "
-            f"for line {line.name} near {start_time}"
-        )
-        return existing_downtime
-
-    # Дополнительная проверка на любой активный простой
-    any_active_downtime = Downtime.objects.filter(
-        line=line, is_active=True, end_time__isnull=True
-    ).first()
-
-    if any_active_downtime:
-        logger.info(
-            f"Found another active downtime {any_active_downtime.id} "
-            f"for line {line.name}. Skipping creation"
-        )
-        return any_active_downtime
-
+    for shift in shifts.all():
+        logger.debug(f"Проверяем смену {shift}: {shift.start_time} - {shift.end_time}")
+        if is_current_shift(shift.start_time, shift.end_time, target_time_obj):
+            logger.debug(f"Нашли смену: {shift}")
+            return shift
     return None
 
 
-@transaction.atomic
-def create_downtime(line, section, department, reason, start_time, notes):
-    """
-    Создает новый простой от имени системного пользователя
-    """
-    system_user = get_system_user()
-    if not system_user:
-        logger.error("Не удалось создать простой: системный пользователь не найден")
-        return None
-
-    try:
-        # Проверяем наличие существующего простоя перед созданием
-        existing_downtime = check_existing_downtime(line, start_time)
-        if existing_downtime:
-            logger.info(
-                f"Found existing downtime {existing_downtime.id} "
-                f"for line {line.name}, skipping creation"
-            )
-            return existing_downtime
-
-        # Используем select_for_update для блокировки строки
-        with transaction.atomic():
-            new_downtime = Downtime.objects.create(
-                line=line,
-                section=section,
-                department=department,
-                reason=reason,
-                start_time=start_time,
-                is_active=True,
-                created_by=system_user,
-                notes=notes,
-            )
-            logger.info(
-                f"Successfully created new downtime {new_downtime.id} "
-                f"for line {line.name}"
-            )
-            return new_downtime
-    except Exception as e:
-        logger.error(f"Failed to create new downtime: {str(e)}", exc_info=True)
-        return None
+def get_current_shift(line, current_datetime):
+    """Получает текущую смену для линии"""
+    return get_shift_for_time(line, current_datetime)
 
 
-def handle_shift_boundary(downtime, line):
-    """
-    Обрабатывает простой, пересекающий границу смены
-    """
-    current_time = timezone.now()
-    current_shift = line.get_active_shift(current_time)
-
+def should_end_downtime(downtime, current_shift):
+    """Проверяет, нужно ли завершить простой"""
     if not current_shift:
-        logger.warning(f"No active shift found for line {line.name}")
-        return None
+        return False
 
-    # Получаем дату начала смены
-    shift_date = current_time.date()
+    # Получаем дату начала простоя
+    downtime_date = downtime.start_time.date()
+    current_date = now().date()
 
-    # Определяем, когда началась текущая смена
-    if current_shift.start_time > current_time.time():
-        # Если время начала смены больше текущего времени,
-        # значит смена началась вчера
-        shift_date = shift_date - timezone.timedelta(days=1)
+    # Если простой начался в предыдущие сутки, завершаем его
+    if downtime_date < current_date:
+        return True
 
-    # Создаем datetime для начала смены
-    shift_start_time = timezone.make_aware(
-        datetime.combine(shift_date, current_shift.start_time),
-        timezone=timezone.get_current_timezone(),
+    # Проверяем, начался ли простой в другой смене
+    # и не является ли время начала простоя временем начала текущей смены
+    downtime_time = downtime.start_time.time()
+    return (
+        not is_current_shift(downtime_time, current_shift.end_time, downtime.start_time)
+        and downtime_time != current_shift.start_time
     )
+
+
+def get_shift_end_time(shift, start_date):
+    """Получает время окончания смены с учетом перехода через полночь"""
+    # Преобразуем start_date в datetime с сохранением временной зоны
+    if isinstance(start_date, datetime):
+        start_datetime = start_date
+    else:
+        # Если передан date, создаем datetime с временем 00:00
+        start_datetime = datetime.combine(start_date, time(0, 0))
+        # Добавляем временную зону, если её нет
+        if start_datetime.tzinfo is None:
+            start_datetime = make_aware(start_datetime)
+
+    # Преобразуем время в московский часовой пояс для корректного сравнения
+    local_start_time = start_datetime.astimezone(MOSCOW_TZ).time()
+    logger.debug(
+        f"Время начала простоя в московском поясе: {local_start_time}, "
+        f"смена: {shift.start_time} - {shift.end_time}"
+    )
+
+    # Если смена начинается в 00:00, то она заканчивается в 08:00 того же дня
+    if shift.start_time == time(0, 0):
+        end_date = start_datetime.date()
+    # Если смена заканчивается в 00:00, это означает конец следующего дня
+    elif shift.end_time == time(0, 0):
+        end_date = start_datetime.date() + timedelta(days=1)
+    else:
+        # Если время окончания смены меньше времени начала, значит смена переходит на следующий день
+        if shift.end_time < shift.start_time:
+            # Для смен, переходящих через полночь, проверяем время начала простоя
+            if local_start_time >= shift.start_time:
+                # Если простой начался после начала смены, он заканчивается на следующий день
+                end_date = start_datetime.date() + timedelta(days=1)
+            else:
+                # Если простой начался до начала смены, он заканчивается в тот же день
+                end_date = start_datetime.date()
+        else:
+            end_date = start_datetime.date()
 
     logger.debug(
-        f"Checking shift boundary for downtime {downtime.id}. "
-        f"Downtime start: {downtime.start_time}, "
-        f"Shift start: {shift_start_time}, "
-        f"Current time: {current_time}, "
-        f"Line: {line.name}"
+        f"Определяем время окончания смены: "
+        f"смена {shift}, дата начала {start_datetime}, "
+        f"дата окончания {end_date}"
     )
 
-    # Проверяем, начался ли простой до начала текущей смены
-    if downtime.start_time < shift_start_time:
-        logger.info(
-            f"Downtime {downtime.id} started before current shift. "
-            f"Completing at shift boundary."
+    # Создаем datetime с временем окончания смены
+    end_datetime = datetime.combine(end_date, shift.end_time)
+    # Добавляем временную зону, если её нет
+    if end_datetime.tzinfo is None:
+        end_datetime = make_aware(end_datetime)
+    # Преобразуем в московский часовой пояс
+    return end_datetime.astimezone(MOSCOW_TZ)
+
+
+def print_lines_and_shifts():
+    lines = Line.objects.all()
+    current_datetime = now().astimezone(
+        MOSCOW_TZ
+    )  # Преобразуем текущее время в московское
+    current_date = current_datetime.date()
+
+    # Получаем системного пользователя для создания простоев
+    sys_user = User.objects.filter(username__iexact="sys_user").first()
+    if not sys_user:
+        logger.error(
+            "Системный пользователь sys_user не найден. " "Доступные пользователи: %s",
+            ", ".join(User.objects.values_list("username", flat=True)),
         )
+        return
 
-        try:
-            with transaction.atomic():
-                # Блокируем строку для обновления
-                downtime = Downtime.objects.select_for_update().get(pk=downtime.pk)
-
-                # Завершаем текущий простой ровно на границе смены
-                downtime.end_time = shift_start_time
-                downtime.is_active = False
-                downtime.save()
-
-                # Проверяем, нет ли уже активного простоя
-                if Downtime.objects.filter(
-                    line=line, is_active=True, end_time__isnull=True
-                ).exists():
-                    logger.warning(
-                        f"Active downtime already exists for line {line.name}, "
-                        f"skipping new downtime creation"
-                    )
-                    return downtime
-
-                # Создаём новый простой только если нет активного
-                new_downtime = create_downtime(
-                    line=line,
-                    section=downtime.section,
-                    department=downtime.department,
-                    reason=downtime.reason,
-                    start_time=shift_start_time,
-                    notes=(
-                        f"Automatically created from downtime {downtime.id}. "
-                        f"Reason: shift boundary crossing"
-                    ),
-                )
-
-                if new_downtime:
+    for line in lines:
+        logger.info(f"Линия: {line.name}")
+        shifts = getattr(line, "shifts", None)
+        if shifts is not None:
+            for shift in shifts.all():
+                if is_current_shift(shift.start_time, shift.end_time, current_datetime):
+                    start_time = format_shift_time(shift.start_time, current_date)
+                    end_time = format_shift_time(shift.end_time, current_date)
                     logger.info(
-                        f"Created new downtime {new_downtime.id} " f"at shift boundary"
+                        f"  Смена: {shift} (текущая) "
+                        f"{localtime(start_time).strftime('%d.%m.%Y %H:%M')} - "
+                        f"{localtime(end_time).strftime('%d.%m.%Y %H:%M')}"
                     )
-                    return new_downtime
                 else:
-                    logger.error("Failed to create new downtime at shift boundary")
-                    return downtime
-        except Exception as e:
-            logger.error(f"Error handling shift boundary: {str(e)}", exc_info=True)
-            return downtime
-    else:
-        logger.debug(
-            f"Downtime {downtime.id} started after shift start - " f"no split needed"
+                    logger.info(f"  Смена: {shift}")
+        else:
+            logger.info("  Нет информации о сменах")
+
+        # Получаем последний активный простой для линии
+        last_downtime = (
+            Downtime.objects.filter(line=line, end_time__isnull=True)
+            .order_by("-start_time")
+            .first()
         )
-        return downtime
 
-
-def create_or_get_task(name):
-    """
-    Создает новую задачу или возвращает существующую
-    """
-    running_task = Task.objects.filter(
-        name=name, status__in=["pending", "running"]
-    ).first()
-
-    if running_task:
-        logger.warning(
-            f"Task {name} is already running or pending. "
-            f"Created at {running_task.created_at}"
-        )
-        return running_task
-
-    return Task.objects.create(
-        name=name,
-        status="pending",
-        description=f"Task {name} created at {timezone.now()}",
-    )
-
-
-def run_task(task_name, task_func):
-    """
-    Выполняет задачу с отслеживанием статуса
-    """
-    task = create_or_get_task(task_name)
-
-    try:
-        logger.info(f"Starting task: {task_name}")
-        task.status = "running"
-        task.started_at = timezone.now()
-        task.save()
-
-        result = task_func()
-        task.status = "completed"
-        task.result = str(result)
-        logger.info(f"Task {task_name} completed successfully")
-        return result
-    except Exception as e:
-        logger.error(f"Task {task_name} failed with error: {str(e)}", exc_info=True)
-        task.status = "failed"
-        task.error_message = str(e)
-        raise
-    finally:
-        task.completed_at = timezone.now()
-        task.save()
-
-
-def process_last_downtimes():
-    """
-    Собирает информацию о последних простоях по каждой активной линии
-    """
-    return run_task("Last Downtimes Task", _process_last_downtimes)
-
-
-def _process_last_downtimes():
-    """
-    Внутренняя функция для обработки простоев
-    """
-    logger.debug("Starting LastDowntimesTask execution")
-    active_lines = Line.objects.filter(is_active=True)
-    logger.debug(f"Found {active_lines.count()} active lines")
-    result = []
-
-    for line in active_lines:
-        try:
-            # Получаем последний простой для линии
-            logger.debug(f"Searching for active downtimes for line {line.name}")
-            last_downtime = (
-                Downtime.objects.filter(
-                    Q(line=line, is_active=True) | Q(line=line, end_time__isnull=True)
-                )
-                .order_by("-start_time")
-                .first()
-            )
-
-            if last_downtime:
+        if last_downtime:
+            # Проверяем, нужно ли завершить простой
+            current_shift = get_current_shift(line, current_datetime)
+            if current_shift and should_end_downtime(last_downtime, current_shift):
+                # Получаем смену, в которой начался простой
+                downtime_shift = get_shift_for_time(line, last_downtime.start_time)
                 logger.debug(
-                    f"Found downtime {last_downtime.id} for line {line.name}. "
-                    f"Active: {last_downtime.is_active}, "
-                    f"Start: {last_downtime.start_time}, "
-                    f"End: {last_downtime.end_time}"
+                    f"Время начала простоя: {last_downtime.start_time.astimezone(MOSCOW_TZ)}, "
+                    f"найденная смена: {downtime_shift}"
                 )
-                # Проверяем и обрабатываем пересечение границы смены
-                last_downtime = handle_shift_boundary(last_downtime, line)
+                if downtime_shift:
+                    # Завершаем простой окончанием смены, в которой он начался
+                    # Используем дату из времени начала простоя
+                    downtime_start = last_downtime.start_time.astimezone(MOSCOW_TZ)
+                    end_time = get_shift_end_time(downtime_shift, downtime_start)
+                    last_downtime.end_time = end_time
+                    last_downtime.save()
+                    logger.info(
+                        f"  Простой завершен окончанием смены: "
+                        f"{localtime(last_downtime.start_time)} - "
+                        f"{localtime(last_downtime.end_time)}"
+                    )
 
-                if last_downtime:
-                    line_info = {
-                        "line_name": line.name,
-                        "downtime_start": last_downtime.start_time.strftime(
-                            "%Y-%m-%d %H:%M"
-                        ),
-                        "duration": last_downtime.get_duration(),
-                        "section": str(last_downtime.section or "Не указан"),
-                        "department": str(last_downtime.department or "Не указан"),
-                        "reason": str(last_downtime.reason or "Не указана"),
-                        "notes": last_downtime.notes or "Нет примечаний",
-                    }
-                    result.append(line_info)
-                    logger.debug(f"Found downtime for line {line.name}: {line_info}")
+                    # Создаем новый простой, начинающийся с момента окончания предыдущего
+                    # Преобразуем время в московский часовой пояс
+                    moscow_time = end_time.astimezone(MOSCOW_TZ)
+                    new_downtime = Downtime.objects.create(
+                        line=line,
+                        start_time=moscow_time,
+                        end_time=None,
+                        created_by=sys_user,
+                    )
+                    logger.info(
+                        f"  Создан новый простой: "
+                        f"{localtime(new_downtime.start_time)} - None"
+                    )
             else:
-                logger.debug(f"No active downtimes found for line {line.name}")
-        except Exception as e:
-            logger.error(f"Error processing line {line.name}: {str(e)}", exc_info=True)
-            continue
-
-    logger.debug(f"LastDowntimesTask completed. Found {len(result)} downtimes")
-    return result
+                logger.info(
+                    f"  Последний простой: {localtime(last_downtime.start_time)} - None"
+                )
+        else:
+            logger.info("  Нет активных простоев")

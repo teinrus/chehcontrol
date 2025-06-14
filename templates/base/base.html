@@ -3,17 +3,243 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ЦехКонтроль{% endblock %}</title>
+    <title>{% block title %}ZeroStack Control{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     {% load static %}
     <link href="{% static 'css/main.css' %}" rel="stylesheet">
+    <style>
+        /* Глобальные стили для курсора */
+        * {
+            cursor: none !important;
+        }
+
+        .custom-cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s, border-color 0.3s;
+            z-index: 10000;
+            box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+            mix-blend-mode: difference;
+        }
+
+        .custom-cursor::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 4px;
+            background: #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+        }
+
+        .custom-cursor.active {
+            width: 40px;
+            height: 40px;
+            border-color: rgba(0, 123, 255, 0.8);
+            box-shadow: 0 0 20px rgba(0, 123, 255, 0.8);
+        }
+
+        /* Стили для интерактивных элементов */
+        a, button, [role="button"], input, select, textarea {
+            cursor: none !important;
+        }
+
+        a:hover, button:hover, [role="button"]:hover,
+        input:hover, select:hover, textarea:hover {
+            cursor: none !important;
+        }
+
+        /* Стили для заставки */
+        .screensaver {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease-in-out;
+            overflow: hidden;
+            cursor: none;
+        }
+
+        .screensaver::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(0, 123, 255, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(0, 255, 136, 0.03) 0%, transparent 50%);
+        }
+
+        .screensaver::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                linear-gradient(45deg, transparent 48%, rgba(255, 255, 255, 0.03) 50%, transparent 52%),
+                linear-gradient(-45deg, transparent 48%, rgba(255, 255, 255, 0.03) 50%, transparent 52%);
+            background-size: 60px 60px;
+            opacity: 0.1;
+        }
+
+        .screensaver.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .screensaver-content {
+            text-align: center;
+            color: #fff;
+            position: relative;
+            z-index: 1;
+            padding: 3rem;
+            border-radius: 2rem;
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(20px);
+            box-shadow: 
+                0 0 40px rgba(0, 0, 0, 0.3),
+                0 0 80px rgba(0, 123, 255, 0.1),
+                inset 0 0 20px rgba(0, 123, 255, 0.05);
+            transform-style: preserve-3d;
+            transition: transform 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 800px;
+            width: 90%;
+        }
+
+        .screensaver-logo {
+            font-size: 4rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(45deg, #ffffff 30%, #a0a0a0 70%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            position: relative;
+            font-family: 'Arial', sans-serif;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+        }
+
+        .screensaver-logo::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+        }
+
+        .screensaver-logo::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+        }
+
+        .screensaver-subtitle {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 300;
+            letter-spacing: 0.2em;
+            margin-bottom: 2rem;
+            text-transform: uppercase;
+        }
+
+        .screensaver-time {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 300;
+            letter-spacing: 0.1em;
+            margin-top: 2rem;
+        }
+
+        /* Частицы */
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            animation: float 20s infinite linear;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .particle:hover {
+            transform: scale(2);
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0) translateX(0);
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) translateX(100px);
+                opacity: 0;
+            }
+        }
+    </style>
 </head>
 <body>
+    <!-- Глобальный курсор -->
+    <div class="custom-cursor"></div>
+
+    <!-- Заставка -->
+    <div class="screensaver">
+        <div class="particles" id="particles"></div>
+        <div class="screensaver-content">
+            <div class="screensaver-logo">ZeroStack</div>
+            <div class="screensaver-subtitle">Control System</div>
+            <div class="screensaver-time" id="screensaverTime"></div>
+        </div>
+    </div>
+
     <!-- Верхняя навигационная панель -->
     <nav class="navbar navbar-expand-lg navbar-light fixed-top">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/">ЦехКонтроль</a>
+            <a class="navbar-brand" href="/">ZeroStack Control</a>
             <div class="d-flex align-items-center">
 
                 {% if user.is_authenticated %}
@@ -136,6 +362,28 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Глобальный код для курсора
+        const cursor = document.querySelector('.custom-cursor');
+
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+
+        // Активация курсора при наведении на интерактивные элементы
+        const interactiveElements = document.querySelectorAll('a, button, [role="button"], input, select, textarea, .nav-link, .btn, .card, .screensaver-content');
+        
+        interactiveElements.forEach(element => {
+            element.addEventListener('mouseover', () => {
+                cursor.classList.add('active');
+            });
+            
+            element.addEventListener('mouseout', () => {
+                cursor.classList.remove('active');
+            });
+        });
+
+        // Существующий код для темы
         const toggleButton = document.getElementById('themeToggle');
 
         function applyTheme(theme) {
@@ -156,6 +404,127 @@
             const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
             const newTheme = currentTheme === 'light' ? 'dark' : 'light';
             applyTheme(newTheme);
+        });
+
+        // Код для заставки
+        let inactivityTimer;
+        const screensaver = document.querySelector('.screensaver');
+        const INACTIVITY_TIMEOUT = 90000; // 5 секунд
+
+        function resetTimer() {
+            clearTimeout(inactivityTimer);
+            screensaver.classList.remove('active');
+            inactivityTimer = setTimeout(() => {
+                screensaver.classList.add('active');
+                updateTime();
+            }, INACTIVITY_TIMEOUT);
+        }
+
+        // Сброс таймера при любом действии пользователя
+        ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(event => {
+            document.addEventListener(event, resetTimer);
+        });
+
+        // Инициализация таймера
+        resetTimer();
+
+        // Обновление времени
+        function updateTime() {
+            const timeElement = document.getElementById('screensaverTime');
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ru-RU', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            timeElement.textContent = timeString;
+        }
+
+        // Обновление времени каждую секунду
+        setInterval(updateTime, 1000);
+
+        // Создаем частицы
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            const particleCount = 50;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                // Случайная позиция
+                const x = Math.random() * window.innerWidth;
+                const y = Math.random() * window.innerHeight;
+                
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                
+                // Случайная задержка анимации
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // Создаем частицы при загрузке страницы
+        createParticles();
+
+        // Убираем обработчики движения для стеклянного эффекта
+        screensaver.removeEventListener('mousemove', handleMouseMove);
+        screensaver.removeEventListener('mouseleave', handleMouseLeave);
+
+        // Функция для создания капли краски
+        function createPaintDrop() {
+            const drop = document.createElement('div');
+            drop.className = 'paint-drop';
+            
+            // Случайная позиция
+            const x = Math.random() * window.innerWidth;
+            const y = Math.random() * window.innerHeight;
+            
+            drop.style.left = x + 'px';
+            drop.style.top = y + 'px';
+            
+            // Случайный размер
+            const size = 100 + Math.random() * 200;
+            drop.style.width = size + 'px';
+            drop.style.height = size + 'px';
+            
+            // Случайная задержка анимации
+            drop.style.animationDelay = Math.random() * 1 + 's';
+            
+            // Добавляем каплю в контейнер
+            screensaver.appendChild(drop);
+        }
+
+        // Создаем капли периодически
+        function startPaintDrops() {
+            // Создаем начальные капли
+            for(let i = 0; i < 3; i++) {
+                setTimeout(createPaintDrop, i * 800);
+            }
+            
+            // Продолжаем создавать капли
+            setInterval(() => {
+                if(screensaver.classList.contains('active')) {
+                    createPaintDrop();
+                }
+            }, 3000);
+        }
+
+        // Запускаем создание капель при активации заставки
+        screensaver.addEventListener('transitionend', (e) => {
+            if(e.propertyName === 'opacity' && screensaver.classList.contains('active')) {
+                startPaintDrops();
+            }
+        });
+
+        // Очищаем капли при деактивации заставки
+        screensaver.addEventListener('transitionend', (e) => {
+            if(e.propertyName === 'opacity' && !screensaver.classList.contains('active')) {
+                const drops = document.querySelectorAll('.paint-drop');
+                drops.forEach(drop => drop.remove());
+            }
         });
     </script>
     {% block extra_js %}{% endblock %}

@@ -18,7 +18,7 @@ def start_scheduler():
     _scheduler = BackgroundScheduler()
     _scheduler.add_job(
         print_lines_and_shifts,
-        trigger=IntervalTrigger(seconds=30),
+        trigger=IntervalTrigger(seconds=60),
         id="print_lines_and_shifts_job",
         replace_existing=True,
     )

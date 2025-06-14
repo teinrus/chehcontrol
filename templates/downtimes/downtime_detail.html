@@ -1,6 +1,6 @@
 {% extends 'base/base.html' %}
 
-{% block title %}Детали простоя - ЦехКонтроль{% endblock %}
+{% block title %}Детали простоя - ZeroStack Control{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -28,22 +28,22 @@
                     <h5 class="card-title">Основная информация</h5>
                     <dl class="row mb-0">
                         <dt class="col-sm-3">Линия</dt>
-                        <dd class="col-sm-9">{{ downtime.line }}</dd>
+                        <dd class="col-sm-9">{{ downtime.line|default:"-" }}</dd>
 
                         <dt class="col-sm-3">Участок</dt>
-                        <dd class="col-sm-9">{{ downtime.section }}</dd>
+                        <dd class="col-sm-9">{{ downtime.section|default:"-" }}</dd>
 
                         <dt class="col-sm-3">Подразделение</dt>
-                        <dd class="col-sm-9">{{ downtime.department }}</dd>
+                        <dd class="col-sm-9">{{ downtime.department|default:"-" }}</dd>
 
                         <dt class="col-sm-3">Причина</dt>
-                        <dd class="col-sm-9">{{ downtime.reason }}</dd>
+                        <dd class="col-sm-9">{{ downtime.reason|default:"-" }}</dd>
 
                         <dt class="col-sm-3">Время начала</dt>
                         <dd class="col-sm-9">{{ downtime.start_time|date:"d.m.Y H:i" }}</dd>
 
                         <dt class="col-sm-3">Время окончания</dt>
-                        <dd class="col-sm-9">{{ downtime.end_time|date:"d.m.Y H:i" }}</dd>
+                        <dd class="col-sm-9">{{ downtime.end_time|date:"d.m.Y H:i"|default:"-" }}</dd>
 
                         <dt class="col-sm-3">Примечания</dt>
                         <dd class="col-sm-9">{{ downtime.notes|default:"-" }}</dd>
@@ -115,4 +115,115 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Стили для темной темы */
+[data-theme="dark"] {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .card {
+    background-color: #2b3035;
+    border-color: #373b3e;
+}
+
+[data-theme="dark"] .card-body {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .card-title {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] dt {
+    color: #adb5bd;
+}
+
+[data-theme="dark"] dd {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .timeline-item {
+    border-left-color: #373b3e;
+}
+
+[data-theme="dark"] .timeline-marker {
+    background-color: #2b3035;
+    border-color: #373b3e;
+}
+
+[data-theme="dark"] .timeline-content {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .text-muted {
+    color: #adb5bd !important;
+}
+
+[data-theme="dark"] .change-item {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+    color: #e9ecef;
+    border-color: #6c757d;
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+    color: #fff;
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+/* Стили для контейнера и его содержимого */
+[data-theme="dark"] .container-fluid {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .row {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .col-md-8,
+[data-theme="dark"] .col-md-4 {
+    color: #e9ecef;
+}
+
+/* Стили для заголовков */
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6 {
+    color: #e9ecef;
+}
+
+/* Стили для списков определений */
+[data-theme="dark"] dl {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] dl.row dt {
+    color: #adb5bd;
+}
+
+[data-theme="dark"] dl.row dd {
+    color: #e9ecef;
+}
+
+/* Стили для карточек */
+[data-theme="dark"] .card-body dl.row dt,
+[data-theme="dark"] .card-body dl.row dd {
+    color: inherit;
+}
+
+[data-theme="dark"] .card-body dl.row dt {
+    color: #adb5bd;
+}
+
+[data-theme="dark"] .card-body dl.row dd {
+    color: #e9ecef;
+}
+</style>
 {% endblock %} 
